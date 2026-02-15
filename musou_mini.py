@@ -1,28 +1,25 @@
 """
-💥 爆五出品 — 三国无双·迷你版
-第三人称 3D 动作解压游戏
+Musou Mini - 3D Third-Person Action Game
+by B5 (Boom Fifth)
 
-操作：
-  WASD    - 移动
-  鼠标    - 转视角
-  左键    - 普通攻击
-  空格    - 跳跃
-  Q      - 大招（范围攻击）
-  R      - 重置游戏
-  ESC    - 退出
-
-目标：消灭所有敌人！
+Controls:
+  WASD    - Move
+  Mouse   - Look around
+  LMB     - Attack
+  Space   - Jump
+  Q       - Ultimate (AoE)
+  R       - Reset
+  ESC     - Unlock mouse
 """
 
 from ursina import *
-from ursina.shaders import lit_with_shadows_shader
 import random
 import math
 
-app = Ursina(title='三国无双·迷你版 💥', borderless=False, fullscreen=False)
+app = Ursina(title='Musou Mini', borderless=False, fullscreen=False)
 
 # ============================================
-# 游戏状态
+# Game State
 # ============================================
 class GameState:
     def __init__(self):
@@ -42,7 +39,7 @@ class GameState:
 game = GameState()
 
 # ============================================
-# 地面和环境
+# Ground & Environment
 # ============================================
 ground = Entity(
     model='plane',
@@ -53,7 +50,7 @@ ground = Entity(
     collider='box'
 )
 
-# 边界墙
+# Boundary walls
 walls = []
 for pos, sc in [
     ((30, 2, 0), (1, 4, 60)),
@@ -64,7 +61,7 @@ for pos, sc in [
     w = Entity(model='cube', position=pos, scale=sc, color=color.rgb(100, 100, 100), collider='box')
     walls.append(w)
 
-# 装饰物（石头/箱子）
+# Obstacles (rocks/crates)
 obstacles = []
 for i in range(15):
     pos = (random.uniform(-25, 25), 0.5, random.uniform(-25, 25))
@@ -79,12 +76,12 @@ for i in range(15):
     )
     obstacles.append(ob)
 
-# 光照
+# Lighting
 ambient = AmbientLight(color=color.rgba(100, 100, 100, 255))
 directional = DirectionalLight(y=10, rotation=(45, 45, 0))
 
 # ============================================
-# 玩家角色
+# Player
 # ============================================
 class Player(Entity):
     def __init__(self):
@@ -106,7 +103,7 @@ class Player(Entity):
         self.grounded = True
         self.invincible = 0
 
-        # 武器（剑）
+        # Weapon (sword)
         self.weapon = Entity(
             model='cube',
             color=color.rgb(200, 200, 220),
@@ -114,7 +111,7 @@ class Player(Entity):
             position=(0.6, 0.3, 0.8),
             parent=self
         )
-        # 剑柄
+        # Handle
         self.handle = Entity(
             model='cube',
             color=color.rgb(139, 69, 19),
@@ -138,7 +135,7 @@ class Player(Entity):
 player = Player()
 
 # ============================================
-# 第三人称相机
+# Third Person Camera
 # ============================================
 camera.position = (0, 10, -12)
 camera_pivot = Entity(position=player.position)
@@ -151,7 +148,7 @@ cam_rot_x = 0
 cam_rot_y = 0
 
 # ============================================
-# 敌人
+# Enemy
 # ============================================
 enemies = []
 
@@ -200,7 +197,7 @@ class Enemy(Entity):
         self.hit_flash = 0
         self.knockback = Vec3(0, 0, 0)
 
-        # 血条
+        # HP bar
         self.hp_bar_bg = Entity(
             model='cube',
             color=color.black,
@@ -226,7 +223,6 @@ class Enemy(Entity):
         if knockback_dir:
             self.knockback = knockback_dir * 5
 
-        # 更新血条
         ratio = max(0, self.hp / self.max_hp)
         self.hp_bar.scale_x = 1.1 * ratio
         if ratio < 0.3:
@@ -245,7 +241,7 @@ class Enemy(Entity):
         if game.combo > game.max_combo:
             game.max_combo = game.combo
 
-        # 击杀特效
+        # Death particles
         for _ in range(8):
             p = Entity(
                 model='cube',
@@ -264,7 +260,6 @@ class Enemy(Entity):
             enemies.remove(self)
         destroy(self)
 
-        # 检查胜利
         if len(enemies) == 0:
             check_wave()
 
@@ -272,20 +267,17 @@ class Enemy(Entity):
         if game.game_over or game.victory:
             return
 
-        # 闪白恢复
         if self.hit_flash > 0:
             self.hit_flash -= time.dt
             if self.hit_flash <= 0:
                 self.color = self.base_color
 
-        # 击退
         if self.knockback.length() > 0.1:
             self.position += self.knockback * time.dt
             self.knockback *= 0.9
         else:
             self.knockback = Vec3(0, 0, 0)
 
-        # 追踪玩家
         to_player = player.position - self.position
         to_player.y = 0
         dist = to_player.length()
@@ -302,7 +294,7 @@ class Enemy(Entity):
         self.attack_timer -= time.dt
 
 # ============================================
-# 生成波次
+# Wave Spawner
 # ============================================
 def spawn_wave(wave_num):
     spawn_list = []
@@ -328,7 +320,7 @@ def spawn_wave(wave_num):
             total += 1
 
     game.total_enemies = total
-    wave_text.text = f'第 {wave_num} 波!'
+    wave_text.text = f'Wave {wave_num}!'
     wave_text.visible = True
     invoke(setattr, wave_text, 'visible', False, delay=2)
 
@@ -342,29 +334,23 @@ def check_wave():
 # ============================================
 # UI
 # ============================================
-# 血条
 hp_bg = Entity(parent=camera.ui, model='quad', color=color.black, scale=(0.4, 0.035), position=(-0.45, 0.45))
 hp_bar = Entity(parent=camera.ui, model='quad', color=color.rgb(220, 30, 30), scale=(0.38, 0.028), position=(-0.45, 0.45))
 hp_text = Text(text='HP: 100/100', position=(-0.63, 0.43), scale=1.2, color=color.white)
 
-# 分数和连击
-score_text = Text(text='分数: 0', position=(-0.63, 0.38), scale=1.2, color=color.yellow)
+score_text = Text(text='Score: 0', position=(-0.63, 0.38), scale=1.2, color=color.yellow)
 combo_text = Text(text='', position=(0, 0.3), scale=2.5, color=color.orange, origin=(0, 0))
-kill_text = Text(text='击杀: 0', position=(-0.63, 0.33), scale=1.2, color=color.white)
+kill_text = Text(text='Kills: 0', position=(-0.63, 0.33), scale=1.2, color=color.white)
 
-# 大招状态
-ult_text = Text(text='[Q] 大招: 就绪', position=(-0.63, 0.28), scale=1.2, color=color.cyan)
+ult_text = Text(text='[Q] Ultimate: Ready', position=(-0.63, 0.28), scale=1.2, color=color.cyan)
 
-# 波次提示
 wave_text = Text(text='', position=(0, 0.1), scale=4, color=color.white, origin=(0, 0), visible=False)
 
-# 游戏结束
 gameover_text = Text(text='', position=(0, 0.05), scale=3, color=color.red, origin=(0, 0), visible=False)
 restart_text = Text(text='', position=(0, -0.05), scale=1.5, color=color.white, origin=(0, 0), visible=False)
 
-# 操作提示
 help_text = Text(
-    text='WASD移动 | 鼠标转向 | 左键攻击 | 空格跳 | Q大招 | R重置',
+    text='WASD Move | Mouse Look | LMB Attack | Space Jump | Q Ultimate | R Reset',
     position=(0, -0.45),
     scale=1,
     color=color.rgb(200, 200, 200),
@@ -372,7 +358,7 @@ help_text = Text(
 )
 
 # ============================================
-# 攻击特效
+# Attack
 # ============================================
 def do_attack():
     if player.attacking:
@@ -380,16 +366,13 @@ def do_attack():
     player.attacking = True
     player.attack_timer = 0.3
 
-    # 剑挥动动画
     player.weapon.animate_rotation((0, 0, -90), duration=0.15)
     invoke(lambda: player.weapon.animate_rotation((0, 0, 0), duration=0.15), delay=0.15)
 
-    # 判定范围内的敌人
     hit_any = False
     for e in enemies[:]:
         dist = (e.position - player.position).length()
         if dist < player.attack_range:
-            # 方向判定
             forward = Vec3(
                 math.sin(math.radians(camera_pivot.rotation_y)),
                 0,
@@ -398,14 +381,13 @@ def do_attack():
             to_enemy = (e.position - player.position).normalized()
             to_enemy.y = 0
             dot = forward.x * to_enemy.x + forward.z * to_enemy.z
-            if dot > -0.3:  # 大范围攻击判定
+            if dot > -0.3:
                 knockback_dir = to_enemy
                 e.take_damage(player.attack_power, knockback_dir)
                 hit_any = True
 
     if hit_any:
         game.shake_amount = 0.15
-        # 砍击特效
         slash = Entity(
             model='cube',
             color=color.rgb(255, 200, 50),
@@ -423,7 +405,6 @@ def do_ultimate():
     game.ultimate_cooldown = 8
     game.shake_amount = 0.5
 
-    # 大招特效 — 冲击波
     wave_effect = Entity(
         model='sphere',
         color=color.rgba(255, 100, 50, 150),
@@ -434,7 +415,6 @@ def do_ultimate():
     wave_effect.animate_color(color.rgba(255, 100, 50, 0), duration=0.5)
     destroy(wave_effect, delay=0.5)
 
-    # 范围伤害
     for e in enemies[:]:
         dist = (e.position - player.position).length()
         if dist < 10:
@@ -442,7 +422,7 @@ def do_ultimate():
             e.take_damage(80, knockback_dir)
 
 # ============================================
-# 游戏重置
+# Reset
 # ============================================
 def reset_game():
     for e in enemies[:]:
@@ -471,37 +451,34 @@ def reset_game():
     spawn_wave(1)
 
 # ============================================
-# 主循环
+# Main Loop
 # ============================================
 def update():
     global cam_rot_x, cam_rot_y
 
-    # 游戏结束/胜利画面
     if game.game_over:
-        gameover_text.text = f'你阵亡了!\n分数: {game.score}\n最大连击: {game.max_combo}'
+        gameover_text.text = f'YOU DIED!\nScore: {game.score}\nMax Combo: {game.max_combo}'
         gameover_text.visible = True
-        restart_text.text = '按 R 重新开始'
+        restart_text.text = 'Press R to Restart'
         restart_text.visible = True
         mouse.locked = False
         return
 
     if game.victory:
-        gameover_text.text = f'🎉 全部消灭!\n分数: {game.score}\n击杀: {game.kill_count}\n最大连击: {game.max_combo}'
+        gameover_text.text = f'VICTORY!\nScore: {game.score}\nKills: {game.kill_count}\nMax Combo: {game.max_combo}'
         gameover_text.color = color.yellow
         gameover_text.visible = True
-        restart_text.text = '按 R 再来一次'
+        restart_text.text = 'Press R to Play Again'
         restart_text.visible = True
         mouse.locked = False
         return
 
-    # 相机旋转
     cam_rot_y += mouse.velocity[0] * 100
     cam_rot_x -= mouse.velocity[1] * 100
     cam_rot_x = clamp(cam_rot_x, -30, 60)
     camera_pivot.rotation_y = cam_rot_y
     camera_pivot.rotation_x = cam_rot_x
 
-    # 玩家移动
     move_dir = Vec3(0, 0, 0)
     forward = Vec3(
         math.sin(math.radians(cam_rot_y)),
@@ -522,13 +499,11 @@ def update():
     if move_dir.length() > 0:
         move_dir = move_dir.normalized()
         new_pos = player.position + move_dir * player.speed * time.dt
-        # 边界限制
         new_pos.x = clamp(new_pos.x, -28, 28)
         new_pos.z = clamp(new_pos.z, -28, 28)
         player.position = new_pos
         player.rotation_y = cam_rot_y
 
-    # 跳跃
     if not player.grounded:
         player.y_velocity -= 20 * time.dt
         player.y += player.y_velocity * time.dt
@@ -537,10 +512,8 @@ def update():
             player.grounded = True
             player.y_velocity = 0
 
-    # 相机跟随
     camera_pivot.position = lerp(camera_pivot.position, player.position, 8 * time.dt)
 
-    # 屏幕震动
     if game.shake_amount > 0:
         camera.position = Vec3(
             random.uniform(-1, 1) * game.shake_amount,
@@ -552,33 +525,27 @@ def update():
             game.shake_amount = 0
             camera.position = Vec3(0, 6, -10)
 
-    # 攻击冷却
     if player.attacking:
         player.attack_timer -= time.dt
         if player.attack_timer <= 0:
             player.attacking = False
 
-    # 无敌时间
     if player.invincible > 0:
         player.invincible -= time.dt
 
-    # 大招冷却
     if not game.ultimate_ready:
         game.ultimate_cooldown -= time.dt
         if game.ultimate_cooldown <= 0:
             game.ultimate_ready = True
 
-    # 连击衰减
     if game.combo > 0:
         game.combo_timer -= time.dt
         if game.combo_timer <= 0:
             game.combo = 0
 
-    # 更新敌人
     for e in enemies[:]:
         e.update_enemy()
 
-    # 更新 UI
     hp_ratio = player.hp / player.max_hp
     hp_bar.scale_x = 0.38 * hp_ratio
     hp_bar.x = -0.45 - 0.19 * (1 - hp_ratio)
@@ -590,20 +557,20 @@ def update():
         hp_bar.color = color.rgb(30, 220, 30)
 
     hp_text.text = f'HP: {int(player.hp)}/{player.max_hp}'
-    score_text.text = f'分数: {game.score}'
-    kill_text.text = f'击杀: {game.kill_count} | 波次: {game.wave}/5'
+    score_text.text = f'Score: {game.score}'
+    kill_text.text = f'Kills: {game.kill_count} | Wave: {game.wave}/5'
 
     if game.combo > 1:
-        combo_text.text = f'{game.combo} 连击!'
+        combo_text.text = f'{game.combo} COMBO!'
         combo_text.visible = True
     else:
         combo_text.visible = False
 
     if game.ultimate_ready:
-        ult_text.text = '[Q] 大招: 就绪 ✅'
+        ult_text.text = '[Q] Ultimate: READY'
         ult_text.color = color.cyan
     else:
-        ult_text.text = f'[Q] 大招: {game.ultimate_cooldown:.1f}s'
+        ult_text.text = f'[Q] Ultimate: {game.ultimate_cooldown:.1f}s'
         ult_text.color = color.gray
 
 def input(key):
@@ -621,7 +588,7 @@ def input(key):
         mouse.locked = not mouse.locked
 
 # ============================================
-# 开始游戏！
+# Start!
 # ============================================
 spawn_wave(1)
 
